@@ -5,11 +5,26 @@ Open Business Blueprint for **ISCO-08 4323**: Transport Clerks — an ISCO
 pure-cognitive work, the LLM-first wave, **no robotics gate** —
 eligible for actor implementation now.
 
-**Maturity: `:blueprint`** — blueprint only; **no actor implementation
-yet**, and none is claimed. The implemented actor will follow the
-fleet-standard pattern (advisor-LLM sealed behind the independent
-`:transport-clerks-governor` governor, human approval workflow, append-only
-audit ledger). Seventh wave-0 cognitive batch (ADR-2607122700 addenda).
+**Maturity: `:implemented`** — TransportClerksAdvisor ⊣
+TransportClerksGovernor as a langgraph StateGraph
+(`intake → advise → govern → decide → commit/hold`, human-approval
+interrupt), modeled on cloud-itonami-isco-4311's bookkeeping actor.
+13 tests / 27 assertions green.
+
+The manifest HARD invariants — arithmetic and subset containment, not
+optimism:
+
+1. **Payload ceiling** — a proposed manifest's total weight must not
+   exceed the vehicle's registered maximum payload (payload is
+   physics, not optimism).
+2. **Hazmat-class subset** — every proposed hazmat class must be a
+   member of the vehicle's registered approved-hazmat-classes set (no
+   unauthorized hazmat class on this vehicle).
+
+Also HARD: unregistered/foreign vehicle, unregistered organization,
+non-`:propose` effect. Escalations (always human sign-off):
+`:approve-overweight-permit` (special-permit exception request), low
+confidence (< 0.6).
 
 
 
