@@ -21,6 +21,7 @@
             [langgraph.checkpoint :as cp]
             [transportclerk.advisor :as advisor]
             [transportclerk.governor :as governor]
+            [transportclerk.ledger :as ledger]
             [transportclerk.store :as store]))
 
 (defn build-graph
@@ -59,18 +60,42 @@
                                      :else :commit)}))
       (g/add-node :request-approval (fn [s] s))
       (g/add-node :commit
-                   (fn [{:keys [request proposal]}]
+                   ;; `:disposition` still holds what `:decide` wrote, so this
+                   ;; node can tell how it was reached: `:request-approval`
+                   ;; means a human interrupted and resumed the thread,
+                   ;; `:commit` means the governor cleared it alone. Measured
+                   ;; on bae79e8, the two wrote the same entry — an automatic
+                   ;; `:approve-manifest` and one a human signed off after a
+                   ;; low-confidence escalation differed only in the weight
+                   ;; and the advisor's self-reported `:confidence`.
+                   ;;
+                   ;; The basis is read here, at commit time, because the
+                   ;; vehicle register is mutable and the two HARD invariants
+                   ;; are checked against it.
+                   (fn [{:keys [request proposal disposition]}]
                      (let [record {:client-id (:client-id request)
                                     :op (:op proposal)
                                     :vehicle-id (:vehicle-id proposal)
-                                    :payload proposal}]
+                                    :payload proposal}
+                           auth (if (= :request-approval disposition)
+                                  :human-sign-off
+                                  :governor-clear)
+                           basis (ledger/basis-of
+                                  (store/vehicle store (:vehicle-id proposal)))]
                        (store/commit-record! store record)
-                       (store/append-ledger! store {:disposition :commit :record record})
+                       (store/append-ledger!
+                        store (ledger/entry {:disposition :commit
+                                             :authorisation auth
+                                             :record record
+                                             :basis basis}))
                        {:record record
-                        :audit [{:node :commit :record record}]})))
+                        :audit [{:node :commit :record record :authorisation auth}]})))
       (g/add-node :hold
                    (fn [{:keys [verdict]}]
-                     (store/append-ledger! store {:disposition :hold :verdict verdict})
+                     (store/append-ledger!
+                      store (ledger/entry {:disposition :hold
+                                           :authorisation :governor-hold
+                                           :verdict verdict}))
                      {:audit [{:node :hold :verdict verdict}]}))
       (g/set-entry-point :intake)
       (g/add-edge :intake :advise)
