@@ -26,7 +26,7 @@
     6. :op :approve-overweight-permit (special-permit exception
                            request for an over-capacity load).
     7. low confidence (< `confidence-floor`)."
-  (:require [clojure.set :as set]
+  (:require [kotoba.lang.coll :as set]
             [transportclerk.store :as store]))
 
 (def confidence-floor 0.6)
