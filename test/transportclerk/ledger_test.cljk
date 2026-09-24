@@ -1,5 +1,5 @@
 (ns transportclerk.ledger-test
-  (:require [clojure.test :refer [deftest is testing]]
+  (:require [kotoba.test :refer [deftest is testing]]
             [transportclerk.ledger :as ledger]))
 
 ;; Every refusal below asserts the SENTENCE the ledger gave, not merely
